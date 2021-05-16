@@ -1,1 +1,12 @@
 
+동영상은 여기서 보실수 있습니다.
+https://www.youtube.com/watch?v=wXPvLiIjvlc&ab_channel=SoowhanYi
+
+Cozmo robot이 symbol들을 인식하고 각각의 symbol들에 따라 다른 행동을 합니다. CS 3630 Lab2.pdf를 보시면 더 자세한 설명을 보실수 있습니다.
+Order Symbol - 큐브를 픽업 하고 앞으로 옮긴후 제자리로 돌아온다.
+Drone Symbol - S 자로 운전한다.
+inspection Symbol - 정사각형의 형태로 움직이며 팔을 들었다 올렸다 한다. 
+
+본인이 edit 한 코드
+Lab2.py
+
