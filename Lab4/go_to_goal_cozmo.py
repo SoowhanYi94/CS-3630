@@ -18,10 +18,6 @@ from particle import Particle, Robot
 from setting import *
 from particle_filter import *
 from utils import *
-from rrt import *
-from cmap import *
-    
-
 
 #particle filter functionality
 class ParticleFilter:
@@ -130,7 +126,6 @@ async def run(robot: cozmo.robot.Robot):
 
     global flag_odom_init, last_pose
     global grid, gui, pf
-    global cmap, stopevent
 
     # start streaming
     robot.camera.image_stream_enabled = True
@@ -152,7 +147,7 @@ async def run(robot: cozmo.robot.Robot):
     # YOUR CODE HERE
     pickedUp= robot.is_picked_up
     localized = False
-    goal = (6, 10, 90)
+    goal = (6, 10, 0)
     is_at_goal = False
     pf = ParticleFilter(grid)
     flag = 5
@@ -187,75 +182,12 @@ async def run(robot: cozmo.robot.Robot):
                                 say('hi')
                                 await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabHappy).wait_for_completed()
                             else:
-                                global cmap
-                                ########################################################################
-                                # TODO: please enter your code below.
-                                # Description of function provided in instructions
-                                
-                                #assume start position is in cmap and was loaded from emptygrid.json as [50, 35] already
-                                #assume start angle is 0
-                                #Add final position as goal point to cmap, with final position being defined as a point that is at midpoint of the map 
-                                #you can get map width and map weight from cmap.get_size()
-                                cozmo_pos = cmap.get_start() #get start position. This will be [50, 35] if we use emptygrid for actual robot
-                                cozmo_angle = 0
-                                map_width, map_height = cmap.get_size()
-                                final_goal_center = Node((map_width*2/4, map_height*2/4))
-                                cmap.add_goal(final_goal_center) #adding a goal first to be the center
-                                print("center added as goal")
-                                
-                                #reset the current stored paths in cmap
-                                #call the RRT function using your cmap as input, and RRT will update cmap with a new path to the target from the start position
-                                #get path from the cmap
-                                cmap.reset_paths()
-                                RRT(cmap, cmap.get_start()) #get a path based on cmap target and start position
-                                path = cmap.get_smooth_path() #smooth path
-                                print("path created")   
-                                
-                                
-                                #marked and update_cmap are both outputted from detect_cube_and_update_cmap(robot, marked, cozmo_pos).
-                                #and marked is an input to the function, indicating which cubes are already marked
-                                #So initialize "marked" to be an empty dictionary and "update_cmap" = False
-                                marked = {} 
-                                update_cmap = False
-                                
-                                #while the current cosmo position is not at the goal:
-                                while cozmo_pos not in cmap.get_goals():
-                                
-                                    #break if path is none or empty, indicating no path was found
-                                    if (path is None or len(path)==0):
-                                        print("path is none") #sanmesh
-                                        break
-                                    
-                                    # Get the next node from the path
-                                    #drive the robot to next node in path. #First turn to the appropriate angle, and then move to it
-                                    #you can calculate the angle to turn through a trigonometric function
-                                    next_pos = path.pop(0)
-                                    print('x: {0:.2f}, y: {1:.2f}'.format(next_pos.x, next_pos.y))
-                                    angle = np.arctan2(next_pos.y - cozmo_pos.y, next_pos.x - cozmo_pos.x)
-                                    print("driving robot to next node in path")
-                                    if abs(angle - cozmo_angle) > 0.01:
-                                        await robot.turn_in_place(cozmo.util.Angle(radians=angle - cozmo_angle)).wait_for_completed()
-                                    await robot.drive_straight(cozmo.util.Distance(distance_mm=get_dist(cozmo_pos, next_pos)),
-                                                         cozmo.util.Speed(speed_mmps=30)).wait_for_completed()
-                                        
-                                    # Update the current Cozmo position (cozmo_pos and cozmo_angle) to be new node position and angle 
-                                    cozmo_pos = next_pos
-                                    cozmo_angle = angle 
-                                
-                                    # Set new start position for replanning with RRT
-                                    cmap.set_start(cozmo_pos)
-
-                                    #detect any visible obstacle cubes and update cmap
-                                    print("detect_cube_and_update_cmap")
-                                    update_cmap, goal_center, marked = await detect_cube_and_update_cmap(robot, marked, cozmo_pos)
-                                    
-                                    #if we detected a cube, indicated by update_cmap, reset the cmap path, recalculate RRT, and get new paths 
-                                    if update_cmap:
-                                        # Found the goal
-                                        cmap.reset_paths()
-                                        RRT(cmap, cmap.get_start())
-                                        path = cmap.get_smooth_path()
-
+                                await robot.turn_in_place(angle = cozmo.util.degrees(dh)).wait_for_completed()
+                                time.sleep(0.5)
+                                await robot.drive_straight(cozmo.util.distance_inches(dist), cozmo.util.speed_mmps(50)).wait_for_completed()
+                                time.sleep(0.5)
+                                await robot.turn_in_place(angle = cozmo.util.degrees(dh2)).wait_for_completed()
+                                is_at_goal = True
                     else:
                         pos = robot.pose
                         if robot.is_picked_up:
@@ -299,14 +231,10 @@ class CozmoThread(threading.Thread):
 
     def run(self):
         cozmo.robot.Robot.drive_off_charger_on_connect = False  # Cozmo can stay on his charger
-        cozmo.run_program(run,use_3d_viewer=False, use_viewer=False)
+        cozmo.run_program(run, use_viewer=False)
 
 
 if __name__ == '__main__':
-    global cmap, stopevent
-    stopevent = threading.Event()
-    cmap = CozMap("maps/emptygrid.json", node_generator)
-
 
     # cozmo thread
     cozmo_thread = CozmoThread()
@@ -316,8 +244,4 @@ if __name__ == '__main__':
     gui.show_particles(pf.particles)
     gui.show_mean(0, 0, 0)
     gui.start()
-    
-    visualizer = Visualizer(cmap)
-    visualizer.start()
-    stopevent.set()
 
